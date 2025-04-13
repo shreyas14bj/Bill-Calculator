@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bill Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="calculateBill.css">
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
+    input { width: 100%; padding: 10px; margin: 10px 0; }
+    button { margin: 5px; padding: 10px 15px; }
+    ul { padding: 0; list-style: none; }
+    li { padding: 5px 0; border-bottom: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🧾 Bill Calculator</h2>
+
+    <input type="text" id="name" placeholder="Item name">
+    <input type="number" id="quantity" placeholder="Quantity">
+    <input type="number" id="cost" placeholder="Cost per item">
+    <input type="number" id="discount" placeholder="Discount %">
+    <input type="number" id="tax" placeholder="Tax %">
+
+    <button onclick="calculateBill()">Calculate</button>
+    <button onclick="resetFields()">Reset</button>
+
+    <h3 id="result">Your bill will be shown here</h3>
+
+    <button onclick="generatePDF()">📄 Download PDF</button>
+    <button onclick="printBill()">🖨️ Print</button>
+    <button onclick="clearHistory()">🗑️ Clear History</button>
+
+    <h3>📜 Previous Bills</h3>
+    <ul id="history"></ul>
+  </div>
+
+  <script>
+    const resultEl = document.getElementById("result");
+    const historyEl = document.getElementById("history");
+
+    function calculateBill() {
+      const name = document.getElementById("name").value;
+      const qty = parseFloat(document.getElementById("quantity").value);
+      const cost = parseFloat(document.getElementById("cost").value);
+      const discount = parseFloat(document.getElementById("discount").value);
+      const tax = parseFloat(document.getElementById("tax").value);
+
+      if (!name || isNaN(qty) || isNaN(cost) || isNaN(discount) || isNaN(tax)) {
+        alert("Fill all fields correctly");
+        return;
+      }
+
+      const base = qty * cost;
+      const discounted = base - (base * discount / 100);
+      const total = discounted + (discounted * tax / 100);
+
+      const summary = `Item: ${name}, Qty: ${qty}, Total: ₹${total.toFixed(2)}`;
+      resultEl.textContent = summary;
+
+      const bill = {
+        name,
+        qty,
+        cost,
+        discount,
+        tax,
+        total: total.toFixed(2),
+        time: new Date().toLocaleString()
+      };
+
+      const bills = JSON.parse(localStorage.getItem("bills")) || [];
+      bills.unshift(bill);
+      localStorage.setItem("bills", JSON.stringify(bills));
+      showHistory();
+    }
+
+    function resetFields() {
+      document.getElementById("name").value = "";
+      document.getElementById("quantity").value = "";
+      document.getElementById("cost").value = "";
+      document.getElementById("discount").value = "";
+      document.getElementById("tax").value = "";
+      resultEl.textContent = "Your bill will be shown here";
+    }
+
+    function showHistory() {
+      const bills = JSON.parse(localStorage.getItem("bills")) || [];
+      historyEl.innerHTML = "";
+      bills.forEach(bill => {
+        const li = document.createElement("li");
+        li.textContent = `[${bill.time}] ${bill.name} - ₹${bill.total}`;
+        historyEl.appendChild(li);
+      });
+    }
+
+    function clearHistory() {
+      localStorage.removeItem("bills");
+      historyEl.innerHTML = "";
+      resultEl.textContent = "Your bill will be shown here";
+    }
+
+    function printBill() {
+      const latest = JSON.parse(localStorage.getItem("bills"))?.[0];
+      if (!latest) return alert("No bill found!");
+
+      const content = `
+        Item: ${latest.name}\n
+        Quantity: ${latest.qty}\n
+        Cost per item: ₹${latest.cost}\n
+        Discount: ${latest.discount}%\n
+        Tax: ${latest.tax}%\n
+        Total: ₹${latest.total}\n
+        Date: ${latest.time}
+      `;
+
+      const win = window.open("", "", "width=400,height=400");
+      win.document.write(`<pre>${content}</pre>`);
+      win.document.close();
+      win.print();
+    }
+
+    async function generatePDF() {
+      const latest = JSON.parse(localStorage.getItem("bills"))?.[0];
+      if (!latest) return alert("No bill to download!");
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text("🧾 Bill Invoice", 80, 20);
+      doc.setFontSize(12);
+      doc.text(`Item: ${latest.name}`, 20, 40);
+      doc.text(`Quantity: ${latest.qty}`, 20, 50);
+      doc.text(`Cost per item: ₹${latest.cost}`, 20, 60);
+      doc.text(`Discount: ${latest.discount}%`, 20, 70);
+      doc.text(`Tax: ${latest.tax}%`, 20, 80);
+      doc.text(`Total Amount: ₹${latest.total}`, 20, 90);
+      doc.text(`Date & Time: ${latest.time}`, 20, 100);
+
+      doc.save("bill_invoice.pdf");
+    }
+
+    // Load history on page load
+    showHistory();
+  </script>
+</body>
+</html>
